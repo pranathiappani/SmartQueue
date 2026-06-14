@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartQueue</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <!-- Authentication Screen -->
+    <div id="login-view" class="login-container">
+        <div class="glass-panel login-box">
+            <h2 class="brand-title">SmartQueue</h2>
+            <div class="tabs">
+                <button id="tab-login" class="tab-btn active" onclick="switchAuthTab('login')">Login</button>
+                <button id="tab-register" class="tab-btn" onclick="switchAuthTab('register')">Register</button>
+            </div>
+            
+            <div id="form-login" class="auth-form active">
+                <input type="text" id="log-username" placeholder="Username">
+                <input type="password" id="log-password" placeholder="Password">
+                <button class="btn primary full-width" onclick="doLogin()">Login</button>
+                <p id="log-error" class="error-msg"></p>
+            </div>
+            
+            <div id="form-register" class="auth-form">
+                <input type="text" id="reg-username" placeholder="Username">
+                <input type="password" id="reg-password" placeholder="Password">
+                <input type="email" id="reg-email" placeholder="Email (e.g. user@test.com)">
+                <input type="text" id="reg-phone" placeholder="Phone">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="reg-is-admin"> 
+                    <label for="reg-is-admin">Register as Admin Account (Demo only)</label>
+                </div>
+                <button class="btn primary full-width" onclick="doRegister()">Create Account</button>
+                <p id="reg-error" class="error-msg"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App (Hidden until login) -->
+    <div id="app-container" class="app-container hidden">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h2 class="brand-title">SmartQueue</h2>
+            <nav>
+                <a href="#" class="active" id="nav-dashboard">Dashboard</a>
+                <a href="#" id="nav-queues">Service Queues</a>
+            </nav>
+            <div class="auth-status">
+                <button class="btn secondary" onclick="doLogout()" style="width: 100%; border-color: rgba(255,255,255,0.2);">Logout</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header>
+                <h1>Dashboard</h1>
+                <div class="user-info" id="user-info">Not logged in</div>
+            </header>
+
+            <!-- Dashboard View -->
+            <section id="view-dashboard" class="view active">
+                <div id="dashboard-admin" style="display:none;">
+                    <div class="dashboard-stats">
+                        <div class="glass-panel stat-card">
+                            <h3>Total Queues</h3>
+                            <p class="stat-value" id="stat-queues">0</p>
+                        </div>
+                        <div class="glass-panel stat-card">
+                            <h3>Waiting Tokens</h3>
+                            <p class="stat-value" id="stat-waiting">0</p>
+                        </div>
+                        <div class="glass-panel stat-card">
+                            <h3>Served Tokens</h3>
+                            <p class="stat-value" id="stat-served">0</p>
+                        </div>
+                    </div>
+                    <div class="glass-panel chart-container" style="margin-top: 2rem;">
+                        <h3>Queue Volume Analytics</h3>
+                        <canvas id="analyticsChart"></canvas>
+                    </div>
+                </div>
+                
+                <div id="dashboard-user" style="display:none;">
+                    <div class="section-header">
+                        <h3>My Active Tokens</h3>
+                        <button class="btn primary" onclick="document.getElementById('nav-queues').click()">+ Join a Queue</button>
+                    </div>
+                    <div class="token-list" id="my-token-list">
+                        <!-- User's tokens across all queues -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Queues View -->
+            <section id="view-queues" class="view">
+                <div class="section-header">
+                    <h3>Active Queues</h3>
+                    <button id="btn-new-queue" class="btn primary" onclick="showCreateQueueModal()" style="display:none;">+ New Queue</button>
+                </div>
+                <div class="grid" id="queue-grid">
+                    <!-- Queue cards will be injected here -->
+                </div>
+            </section>
+
+            <!-- Tokens View -->
+            <section id="view-tokens" class="view">
+                <div class="section-header">
+                    <div style="display:flex; align-items:center; gap: 1rem;">
+                        <button class="btn secondary" onclick="document.getElementById('nav-queues').click()" style="padding: 0.4rem 0.8rem;">&larr; Back</button>
+                        <h3 id="tokens-queue-title">Live Tokens</h3>
+                    </div>
+                    <div style="display:flex; gap: 0.5rem;">
+                        <button id="btn-gen-token" class="btn primary" onclick="generateToken()">+ Generate Token</button>
+                        <button id="btn-vip-token" class="btn primary" onclick="generateVipToken()" style="display:none; background: linear-gradient(135deg, #f59e0b, #d97706); border:none; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);">★ VIP Token</button>
+                    </div>
+                </div>
+                <div class="token-list" id="token-list">
+                    <!-- Tokens will be injected here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <div class="modal glass-panel">
+            <h3 id="modal-title">Create Queue</h3>
+            <input type="text" id="queue-name" placeholder="Queue Name (e.g. Doctor A)">
+            <input type="text" id="queue-desc" placeholder="Description">
+            
+            <select id="queue-type" onchange="toggleQueueTypeInputs()" style="width: 100%; padding: 0.8rem; margin-bottom: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: white;">
+                <option value="LIVE">Live (Walk-In)</option>
+                <option value="SCHEDULED">Scheduled (Appointments)</option>
+            </select>
+            
+            <div id="live-inputs">
+                <input type="number" id="queue-time" placeholder="Avg Service Time (mins)" value="10">
+            </div>
+            
+            <div id="schedule-inputs" style="display:none;">
+                <input type="number" id="queue-slot-duration" placeholder="Slot Duration (mins)" value="15">
+                <input type="number" id="queue-slot-buffer" placeholder="Buffer Time Between Slots (mins)" value="5">
+                <div style="display: flex; gap: 1rem;">
+                    <div style="flex:1">
+                        <label style="font-size: 0.8rem; color: #ccc;">Start Time</label>
+                        <input type="time" id="queue-hours-start" value="09:00">
+                    </div>
+                    <div style="flex:1">
+                        <label style="font-size: 0.8rem; color: #ccc;">End Time</label>
+                        <input type="time" id="queue-hours-end" value="17:00">
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 1rem;">
+                <button class="btn secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn primary" onclick="createQueue()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slot Picker Modal -->
+    <div id="slot-modal" class="modal-overlay hidden">
+        <div class="modal glass-panel" style="max-width: 500px;">
+            <h3>Select a Time Slot</h3>
+            <input type="date" id="slot-date" onchange="fetchSlots()" style="margin-bottom: 1rem;">
+            
+            <div id="slot-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; max-height: 300px; overflow-y: auto; margin-bottom: 1rem;">
+                <!-- Buttons injected here -->
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn secondary" onclick="closeSlotModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
