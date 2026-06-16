@@ -456,3 +456,80 @@ function renderTokens() {
         `;
     });
 }
+
+/* --- AI Chatbot Logic --- */
+function toggleChat() {
+    const chatWidget = document.getElementById('chat-widget');
+    const icon = document.getElementById('chat-toggle-icon');
+    if (chatWidget.classList.contains('closed')) {
+        chatWidget.classList.remove('closed');
+        icon.textContent = '▼';
+        document.getElementById('chat-input').focus();
+    } else {
+        chatWidget.classList.add('closed');
+        icon.textContent = '▲';
+    }
+}
+
+function handleChatKeyPress(event) {
+    if (event.key === 'Enter') {
+        sendChatMessage();
+    }
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    appendChatMessage(message, 'user-msg');
+    input.value = '';
+
+    const loadingId = appendChatMessage('...', 'ai-msg');
+
+    try {
+        const payload = {
+            message: message,
+            queueId: currentQueueId
+        };
+
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: authHeader(),
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            updateChatMessage(loadingId, data.response || "Sorry, I couldn't process that.");
+        } else {
+            updateChatMessage(loadingId, "Connection error. Please try again later.");
+        }
+    } catch (e) {
+        console.error("Chat Error: ", e);
+        updateChatMessage(loadingId, "Something went wrong.");
+    }
+}
+
+function appendChatMessage(text, className) {
+    const chatBody = document.getElementById('chat-body');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'chat-message ' + className;
+    msgDiv.innerHTML = text; // allow markdown/bold formatting from the backend
+    
+    const id = 'msg-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+    msgDiv.id = id;
+    
+    chatBody.appendChild(msgDiv);
+    chatBody.scrollTop = chatBody.scrollHeight;
+    return id;
+}
+
+function updateChatMessage(id, newText) {
+    const msgDiv = document.getElementById(id);
+    if (msgDiv) {
+        // Basic markdown parser for bold text
+        const htmlText = newText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        msgDiv.innerHTML = htmlText;
+    }
+}

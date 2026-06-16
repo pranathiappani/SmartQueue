@@ -16,6 +16,8 @@ public interface TokenRepository extends JpaRepository<Token, UUID> {
     
     long countByServiceQueueAndStatus(ServiceQueue serviceQueue, TokenStatus status);
     
+    long countByServiceQueueAndStatusAndCreatedAtAfter(ServiceQueue serviceQueue, TokenStatus status, java.time.LocalDateTime createdAt);
+    
     long countByServiceQueue(ServiceQueue serviceQueue);
     
     Optional<Token> findTopByOrderByCreatedAtDesc();

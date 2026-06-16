@@ -219,7 +219,7 @@ public class TokenService {
         }
     }
 
-    private int calculateDynamicAverageServiceTime(ServiceQueue queue) {
+    public int calculateDynamicAverageServiceTime(ServiceQueue queue) {
         java.util.List<Token> completedTokens = tokenRepository.findTop50ByServiceQueueAndStatusOrderByCompletedAtDesc(queue, TokenStatus.COMPLETED);
         if (completedTokens.isEmpty()) {
             return queue.getAverageServiceTimeMinutes();
