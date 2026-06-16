@@ -42,6 +42,10 @@ window.doLogin = async function() {
         currentRole = role;
         currentUsername = user;
         
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('currentRole', currentRole);
+        localStorage.setItem('currentUsername', currentUsername);
+        
         loginSuccess();
     } catch (e) {
         document.getElementById('log-error').innerText = e.message;
@@ -82,7 +86,7 @@ window.doRegister = async function() {
     }
 }
 
-function loginSuccess() {
+function loginSuccess(isRestore = false) {
     document.getElementById('login-view').classList.add('hidden');
     document.getElementById('app-container').classList.remove('hidden');
     
@@ -103,14 +107,31 @@ function loginSuccess() {
         document.getElementById('dashboard-user').style.display = 'block';
     }
     
-    // By default, go to dashboard
-    document.getElementById('nav-dashboard').click();
+    if (isRestore) {
+        const viewId = localStorage.getItem('currentViewId');
+        if (viewId === 'view-queues') {
+            document.getElementById('nav-queues').click();
+        } else if (viewId === 'view-tokens') {
+            currentQueueId = localStorage.getItem('currentQueueId');
+            currentQueueType = localStorage.getItem('currentQueueType');
+            const qName = localStorage.getItem('currentQueueName') || 'Queue';
+            document.getElementById('tokens-queue-title').innerText = qName + " - Live Tokens";
+            switchToTokensView();
+        } else {
+            document.getElementById('nav-dashboard').click();
+        }
+    } else {
+        // By default, go to dashboard
+        document.getElementById('nav-dashboard').click();
+    }
 }
 
 window.doLogout = function() {
     authToken = null;
     currentRole = null;
+    currentUsername = null;
     currentQueueId = null;
+    localStorage.clear();
     if(fetchTokensInterval) clearInterval(fetchTokensInterval);
     document.getElementById('app-container').classList.add('hidden');
     document.getElementById('login-view').classList.remove('hidden');
@@ -152,6 +173,7 @@ function switchToTokensView() {
 }
 
 function switchView(viewId, navId) {
+    localStorage.setItem('currentViewId', viewId);
     document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.sidebar nav a').forEach(el => el.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
@@ -266,6 +288,9 @@ async function fetchQueues() {
 window.selectQueue = function(id, name, type) {
     currentQueueId = id;
     currentQueueType = type;
+    localStorage.setItem('currentQueueId', id);
+    localStorage.setItem('currentQueueType', type);
+    localStorage.setItem('currentQueueName', name);
     document.getElementById('tokens-queue-title').innerText = name + " - Live Tokens";
     switchToTokensView();
 }
@@ -533,3 +558,29 @@ function updateChatMessage(id, newText) {
         msgDiv.innerHTML = htmlText;
     }
 }
+
+function restoreSession() {
+    const savedToken = localStorage.getItem('authToken');
+    if (savedToken) {
+        authToken = savedToken;
+        currentRole = localStorage.getItem('currentRole');
+        currentUsername = localStorage.getItem('currentUsername');
+        loginSuccess(true);
+    }
+}
+restoreSession();
+document.addEventListener('DOMContentLoaded', restoreSession);
+
+// Intercept fetch to handle expired JWTs gracefully
+const originalFetch = window.fetch;
+window.fetch = async function() {
+    const res = await originalFetch.apply(this, arguments);
+    if (res.status === 401 || res.status === 403) {
+        const url = arguments[0];
+        if (typeof url === 'string' && !url.includes('/auth/')) {
+            doLogout();
+            alert("Your session has expired. Please log in again.");
+        }
+    }
+    return res;
+};
